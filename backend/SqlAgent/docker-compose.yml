@@ -1,0 +1,32 @@
+services:
+
+  sqlagent:
+    build: .
+    container_name: sqlagent-api
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ASPNETCORE_ENVIRONMENT=Development 
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    # deploy:
+    # resources:
+    #   reservations:
+    #     devices:
+    #       - capabilities: [gpu]
+    container_name: ollama-server
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+      - ./ollama/agent.sh:/agent.sh
+    entrypoint: ["/bin/sh", "/agent.sh"]
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
