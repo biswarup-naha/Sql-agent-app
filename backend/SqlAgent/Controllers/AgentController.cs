@@ -20,11 +20,11 @@ namespace SqlAgent.Controllers
         }
 
         [HttpPost("ask")]
-        public async Task<ApiResponse<string>> AskSqlAgent([FromBody] AIRequest request)
+        public async Task<ApiResponse<string>> AskSqlAgent([FromBody] PromptRequest request)
         {
             var schema = await _schemaService.GetDatabaseSchema();
 
-            var question = request.Question;
+            var question = request.Prompt;
 
             var prompt = $@"
                             You are a SQL Server expert.
@@ -40,7 +40,7 @@ namespace SqlAgent.Controllers
                             - Only return SQL
 
                             User Question:
-                            {request.Question}
+                            {request.Prompt}
                             ";
 
             var res = new ApiResponse<string>();
@@ -107,8 +107,4 @@ namespace SqlAgent.Controllers
     }
 
     public record PromptRequest(string Prompt);
-    public class AIRequest
-    {
-        public string Question { get; set; }
-    }
 }
