@@ -28,6 +28,8 @@ builder.Services.AddControllers()
         };
     });
 builder.Services.AddHttpClient<AgentService>();
+builder.Services.AddScoped<SqlService>();
+builder.Services.AddScoped<SchemaService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

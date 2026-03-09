@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.Design;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SqlAgent.Services;
 using SqlAgent.Utils;
 
@@ -11,9 +9,63 @@ namespace SqlAgent.Controllers
     public class AgentController : ControllerBase
     {
         private readonly AgentService _agent;
-        public AgentController(AgentService agent)
+        private readonly SqlService _sql;
+        private readonly SchemaService _schemaService;
+
+        public AgentController(AgentService agent, SqlService sql, SchemaService schemaService)
         {
             _agent = agent;
+            _sql = sql;
+            _schemaService = schemaService;
+        }
+
+        [HttpPost("ask")]
+        public async Task<IActionResult> AskSqlAgent([FromBody] AIRequest request)
+        {
+            var schema = await _schemaService.GetDatabaseSchema();
+
+            var question = request.Question;
+
+            var prompt = $@"
+                            You are a SQL Server expert.
+
+                            Database Schema:
+                            {schema}
+
+                            Rules:
+                            - Only generate SELECT queries
+                            - Do not explain anything
+                            - Do not use markdown
+                            - If there is any question where data type need conversion from NVARCHAR to INT etc then convert that
+                            - Only return SQL
+
+                            User Question:
+                            {request.Question}
+                            ";
+
+            var aiResponse = await _agent.QueryAgent(prompt);
+
+
+            var sqlQuery = SqlCleaner.ExtractSql(aiResponse);
+
+            //Security : before executing, validate:
+            SqlValidator.Validate(sqlQuery);
+
+
+            var result = await _sql.ExecuteQuery(sqlQuery);
+
+            var finalPrompt = $@"
+                                User Question:
+                                {question}
+
+                                Database Result:
+                                {result}
+
+                                Explain the result in simple English.";
+
+            var answer = await _agent.QueryAgent(finalPrompt);
+
+            return Ok(answer);
         }
 
         [HttpPost]
@@ -45,4 +97,8 @@ namespace SqlAgent.Controllers
     }
 
     public record PromptRequest(string Prompt);
+    public class AIRequest
+    {
+        public string Question { get; set; }
+    }
 }
