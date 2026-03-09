@@ -20,7 +20,7 @@ namespace SqlAgent.Controllers
         }
 
         [HttpPost("ask")]
-        public async Task<IActionResult> AskSqlAgent([FromBody] AIRequest request)
+        public async Task<ApiResponse<string>> AskSqlAgent([FromBody] AIRequest request)
         {
             var schema = await _schemaService.GetDatabaseSchema();
 
@@ -43,18 +43,21 @@ namespace SqlAgent.Controllers
                             {request.Question}
                             ";
 
-            var aiResponse = await _agent.QueryAgent(prompt);
+            var res = new ApiResponse<string>();
+            try
+            {
+                var aiResponse = await _agent.QueryAgent(prompt);
 
 
-            var sqlQuery = SqlCleaner.ExtractSql(aiResponse);
+                var sqlQuery = SqlCleaner.ExtractSql(aiResponse);
 
-            //Security : before executing, validate:
-            SqlValidator.Validate(sqlQuery);
+                //Security : before executing, validate:
+                SqlValidator.Validate(sqlQuery);
 
 
-            var result = await _sql.ExecuteQuery(sqlQuery);
+                var result = await _sql.ExecuteQuery(sqlQuery);
 
-            var finalPrompt = $@"
+                var finalPrompt = $@"
                                 User Question:
                                 {question}
 
@@ -63,9 +66,16 @@ namespace SqlAgent.Controllers
 
                                 Explain the result in simple English.";
 
-            var answer = await _agent.QueryAgent(finalPrompt);
-
-            return Ok(answer);
+                res.Result = await _agent.QueryAgent(finalPrompt);
+                res.Message = "Query successfully processed";
+                res.Status = true;
+            }
+            catch (Exception ex)
+            {
+                res.Status = false;
+                res.Message = ex.Message;
+            }
+            return res;
         }
 
         [HttpPost]
@@ -79,9 +89,9 @@ namespace SqlAgent.Controllers
                 //var ans = await _agent.QueryAgent(query);
                 //if (User.IsInRole("SUPERADMIN"))
                 //{
-                    res.Result = await _agent.QueryAgent(query); ;
-                    res.Message = "Query successfully processed";
-                    res.Status = true;
+                res.Result = await _agent.QueryAgent(query); ;
+                res.Message = "Query successfully processed";
+                res.Status = true;
                 //}
                 //res.Status = true;
                 //res.Message = "FAQ statistics retrieved successfully";
