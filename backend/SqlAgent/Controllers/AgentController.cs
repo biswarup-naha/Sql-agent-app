@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using SqlAgent.Services;
 using SqlAgent.Utils;
 
@@ -20,6 +22,7 @@ namespace SqlAgent.Controllers
         }
 
         [HttpPost("ask")]
+        [Authorize(Roles = "USER,ADMIN,SUPERADMIN")]
         public async Task<ApiResponse<string>> AskSqlAgent([FromBody] PromptRequest request)
         {
             var schema = await _schemaService.GetDatabaseSchema();
@@ -52,19 +55,26 @@ namespace SqlAgent.Controllers
                 var sqlQuery = SqlCleaner.ExtractSql(aiResponse);
 
                 //Security : before executing, validate:
-                SqlValidator.Validate(sqlQuery);
+                var role = User.FindFirst(ClaimTypes.Role)?.Value;
+                SqlValidator.Validate(sqlQuery, role);
 
 
                 var result = await _sql.ExecuteQuery(sqlQuery);
 
                 var finalPrompt = $@"
-                                User Question:
-                                {question}
+                                    You are explaining database query results.
 
-                                Database Result:
-                                {result}
+                                    User Question:
+                                    {question}
 
-                                Explain the result in simple English.";
+                                    SQL Query Executed:
+                                    {sqlQuery}
+
+                                    Database Response (JSON):
+                                    {result}
+
+                                    If the command created/updated/deleted data, explain that the operation succeeded.
+                                    If rows are returned, summarize the data in simple English.";
 
                 res.Result = await _agent.QueryAgent(finalPrompt);
                 res.Message = "Query successfully processed";
