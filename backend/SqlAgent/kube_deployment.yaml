@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: sqlagent-deployment
+  labels: 
+    app: sqlagent
+spec:
+  replicas: 3
+  selector: 
+    matchLabels: 
+      app: sqlagent
+  template: 
+    metadata:
+      labels: 
+        app: sqlagent
+    spec:
+      containers:
+      - name: sql-agent-app
+        image: biswarupdock/sql-agent:v1.0.0
+        imagePullPolicy: Always
+
